@@ -1,8 +1,0 @@
-run go run main.go
-
-while app is running, in another terminal window 
-run
-
-curl -X POST http://localhost:8080/receipts/process 
-     -H "Content-Type: application/json" 
-     -d @path/to/simple-receipt.json

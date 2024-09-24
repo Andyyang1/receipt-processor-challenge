@@ -91,6 +91,7 @@ func calculatePoints(receipt Receipt) int {
 	point += addRetailerPoints(retailerName)
 
 	totalFloat, _ := strconv.ParseFloat(receipt.Total, 64)
+
 	if isRoundDollar(totalFloat) {
 		point += 50
 	}
@@ -123,7 +124,11 @@ func processReceiptPointsHandler(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/receipts/")
 	id = strings.TrimSuffix(id, "/points")
 
-	receipt := receiptStore[id]
+	receipt, exists := receiptStore[id]
+	if !exists {
+		http.Error(w, "Receipt not found", http.StatusNotFound)
+		return
+	}
 	points := calculatePoints(receipt)
 
 	response := Response{Points: points}
@@ -140,13 +145,17 @@ func processReceiptHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, _ := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
 
 	id := uuid.New().String()
 
 	var receipt Receipt
 
-	err := json.Unmarshal(body, &receipt)
+	err = json.Unmarshal(body, &receipt)
 	if err != nil {
 		http.Error(w, "Invalid JSON data", http.StatusBadRequest)
 		return
@@ -154,16 +163,10 @@ func processReceiptHandler(w http.ResponseWriter, r *http.Request) {
 	receipt.ID = id
 	receiptStore[id] = receipt
 
-	for key, value := range receiptStore {
-		fmt.Printf("Key: %s, Value: %+v\n", key, value)
-	}
-
 	// Create a response object
 	response := Response{ID: id}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
-
-	fmt.Printf("Total Points %+v \n", response.Points)
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
